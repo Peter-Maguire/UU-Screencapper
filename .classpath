@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="C:/Users/Peter/Documents/DOCUMENTS/Programming/Libaries/Java/JNA/jna-4.1.0.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Peter/Documents/DOCUMENTS/Programming/Libaries/Java/JNA/jna-platform-4.1.0.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Peter/Documents/DOCUMENTS/Programming/Libaries/Java/SWT/swt.jar" sourcepath="C:/Users/Peter/Documents/DOCUMENTS/Programming/Libaries/Java/SWT/src.zip"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
