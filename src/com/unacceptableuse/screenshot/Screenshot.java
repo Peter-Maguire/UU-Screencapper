@@ -230,5 +230,6 @@ public class Screenshot implements ActionListener
 		{
 			System.err.println("Unknown action command: "+event.getActionCommand());
 		}
+		System.gc();
 	}
 }
