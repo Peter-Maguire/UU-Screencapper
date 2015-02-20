@@ -41,7 +41,7 @@ public class Screenshot implements ActionListener
 
 	
 	public static int SCREEN_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width, SCREEN_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height;
-	
+	public static final Encoder base = Base64.getEncoder();
 	Robot robot;
 	TrayIcon trayIcon;
 	MenuItem lastLink;
@@ -112,17 +112,15 @@ public class Screenshot implements ActionListener
 		new Screenshot();
 	}
 	
-	public void uploadScreenCapture(BufferedImage br)
+	public void uploadScreenCapture(final BufferedImage br)
 	{
 		try{
 			Thread.sleep(500);
 			trayIcon.setImage(TRAY_UPLOAD);
 			trayIcon.displayMessage("", "Uploading...", MessageType.INFO);
-			
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ImageIO.write(br, "png", baos);
 			baos.flush();
-			Encoder base = Base64.getEncoder();
 			String encodedImage = base.encodeToString(baos.toByteArray());
 			baos.close();
 			encodedImage = URLEncoder.encode(encodedImage, "ISO-8859-1");
@@ -139,6 +137,11 @@ public class Screenshot implements ActionListener
 			BufferedReader bir = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 			String link = bir.readLine();
 			bir.close();
+			connection.disconnect();
+			
+			encodedImage = null;
+			connection = null;
+			
 			
 			if(link.startsWith("http"))
 			{
