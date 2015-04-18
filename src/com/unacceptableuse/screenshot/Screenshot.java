@@ -1,6 +1,7 @@
 package com.unacceptableuse.screenshot;
 
 import java.awt.AWTException;
+import java.awt.Desktop;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
@@ -17,21 +18,20 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.net.URI;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 
 import javax.imageio.ImageIO;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
-import com.sun.jna.Native;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.platform.win32.WinDef.RECT;
@@ -48,6 +48,7 @@ public class Screenshot implements ActionListener
 	final SystemTray tray = SystemTray.getSystemTray();
 	public int x = 0 , y= 0 , w=0, h=0;
 	public BufferedImage TRAY_IDLE, TRAY_UPLOAD, TRAY_LINK;
+	public Clip clip;
 	
 	public Screenshot()
 	{
@@ -55,6 +56,9 @@ public class Screenshot implements ActionListener
 		{
 			try
 			{
+				clip = AudioSystem.getClip();
+		        AudioInputStream inputStream = AudioSystem.getAudioInputStream(new File("uploaded.wav"));
+		        clip.open(inputStream);
 				TRAY_IDLE = ImageIO.read(new File("tray.png"));
 				TRAY_UPLOAD = ImageIO.read(new File("tray_uploading_1.png"));
 				TRAY_LINK = ImageIO.read(new File("tray_uploading_2.png"));
@@ -97,67 +101,46 @@ public class Screenshot implements ActionListener
 				
 			} catch (AWTException e)
 			{
+				new ErrorWindow("An error occurred creating the TrayIcon. Does your OS have a tray?", generateErrorOutput(e.getStackTrace()));
 				e.printStackTrace();
 			} catch (IOException e)
 			{
-				
+				new ErrorWindow("An error occurred loading the resources. Tampering with the jar?", generateErrorOutput(e.getStackTrace()));
+				e.printStackTrace();
+			} catch (LineUnavailableException e) {
+				new ErrorWindow("An error occurred opening the sound clip. Is it already in use or do you not have speakers?", generateErrorOutput(e.getStackTrace()));
+				e.printStackTrace();
+			} catch (UnsupportedAudioFileException e) {
+				new ErrorWindow("An error occurred opening the sound clip. Tampering with the jar?", generateErrorOutput(e.getStackTrace()));
 				e.printStackTrace();
 			}
+		}else
+		{
+			new ErrorWindow("Your system does not appear to support Tray Icons. That's pretty fundemantal to this program.", "");
 		}
+	}
+	
+	public static String generateErrorOutput(StackTraceElement[] array){
+		StringBuilder stb = new StringBuilder();
+		for(StackTraceElement ste : array){
+			stb.append(ste.toString()+"\n");
+		}
+		return stb.toString();
 	}
 	
 	
 	public static void main(String[] args)
 	{
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		new Screenshot();
+		
 	}
 	
-	public void uploadScreenCapture(final BufferedImage br)
-	{
-		try{
-			Thread.sleep(500);
-			trayIcon.setImage(TRAY_UPLOAD);
-			trayIcon.displayMessage("", "Uploading...", MessageType.INFO);
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ImageIO.write(br, "png", baos);
-			baos.flush();
-			String encodedImage = base.encodeToString(baos.toByteArray());
-			baos.close();
-			encodedImage = URLEncoder.encode(encodedImage, "ISO-8859-1");
-			
-			
-			HttpURLConnection connection = (HttpURLConnection) new URL("http://files.unacceptableuse.com/post.php").openConnection();
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			connection.setRequestMethod("POST");
-			trayIcon.setImage(TRAY_LINK);
-			OutputStreamWriter osw = new OutputStreamWriter(connection.getOutputStream());
-			osw.write("data="+encodedImage);
-			osw.close();
-			BufferedReader bir = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-			String link = bir.readLine();
-			bir.close();
-			connection.disconnect();
-			
-			encodedImage = null;
-			connection = null;
-			
-			
-			if(link.startsWith("http"))
-			{
-				lastLink.setEnabled(true);
-				lastLink.setLabel(link);
-				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(link), null);
-				trayIcon.displayMessage("Screenshot Uploaded" ,link, MessageType.INFO);
-			}else
-				trayIcon.displayMessage("Upload Failed", link, MessageType.ERROR);
-
-		}catch(Exception e)
-		{
-			trayIcon.displayMessage("Upload Failed", e.toString(), MessageType.ERROR);
-		}
-		trayIcon.setImage(TRAY_IDLE);
-	}
+	
 	
 	public Rectangle getActiveWindowBounds()
 	{
@@ -169,11 +152,23 @@ public class Screenshot implements ActionListener
 	    return rect.toRectangle();
 	 }
 
-	
+	private void uploadScreenCapture(BufferedImage br){
+		new Thread(new ThreadedScreenUpload(this, br), "Screenshot uploader thread").run();
+	}
 
 	@Override
 	public void actionPerformed(ActionEvent event)
 	{
+		if(event.getActionCommand() == null)
+		{		
+			if(lastLink.getLabel().startsWith("http")){
+				try {
+					Desktop.getDesktop().browse(new URI(lastLink.getLabel()));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}			
+		}else
 		if(event.getActionCommand().equals("Exit"))
 		{
 			System.exit(1);
