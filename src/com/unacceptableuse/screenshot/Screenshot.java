@@ -1,7 +1,13 @@
 package com.unacceptableuse.screenshot;
 
+import java.applet.Applet;
+import java.applet.AudioClip;
 import java.awt.AWTException;
 import java.awt.Desktop;
+import java.awt.DisplayMode;
+import java.awt.FileDialog;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
@@ -19,18 +25,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 
 import javax.imageio.ImageIO;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
@@ -42,13 +43,15 @@ public class Screenshot implements ActionListener
 	
 	public static int SCREEN_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width, SCREEN_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height;
 	public static final Encoder base = Base64.getEncoder();
+	
 	Robot robot;
 	TrayIcon trayIcon;
 	MenuItem lastLink;
 	final SystemTray tray = SystemTray.getSystemTray();
 	public int x = 0 , y= 0 , w=0, h=0;
 	public BufferedImage TRAY_IDLE, TRAY_UPLOAD, TRAY_LINK;
-	public Clip clip;
+	public AudioClip clip;
+	public GraphicsDevice[] screenGraphics = GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices();
 	
 	public Screenshot()
 	{
@@ -56,12 +59,10 @@ public class Screenshot implements ActionListener
 		{
 			try
 			{
-				clip = AudioSystem.getClip();
-		        AudioInputStream inputStream = AudioSystem.getAudioInputStream(new File("uploaded.wav"));
-		        clip.open(inputStream);
-				TRAY_IDLE = ImageIO.read(new File("tray.png"));
-				TRAY_UPLOAD = ImageIO.read(new File("tray_uploading_1.png"));
-				TRAY_LINK = ImageIO.read(new File("tray_uploading_2.png"));
+				clip = Applet.newAudioClip(new File("uploaded.wav").toURI().toURL());
+				TRAY_IDLE = ImageIO.read(getClass().getResourceAsStream("tray.png"));
+				TRAY_UPLOAD = ImageIO.read(getClass().getResourceAsStream("tray_uploading_1.png"));
+				TRAY_LINK = ImageIO.read(getClass().getResourceAsStream("tray_uploading_2.png"));
 				final PopupMenu popup = new PopupMenu();
 				trayIcon = new TrayIcon(TRAY_IDLE);
 				trayIcon.setToolTip("UU Screencapper");
@@ -70,11 +71,14 @@ public class Screenshot implements ActionListener
 				lastLink.setActionCommand("recopyLink");
 				MenuItem capClipboard = new MenuItem("Capture Clipboard");
 				Menu capScreen = new Menu("Capture Screen");
-				MenuItem scr1 = new MenuItem("Left");
-				MenuItem scr2 = new MenuItem("Center");
-				MenuItem scr3 = new MenuItem("Right");
+				ArrayList<MenuItem> screens = new ArrayList<MenuItem>();
+				for(int i = 0; i < screenGraphics.length; i++){
+					 screens.add(new MenuItem("Screen "+i));
+				}
+				
 				//MenuItem capWin = new MenuItem("Capture Active Window");
 				MenuItem capAll = new MenuItem("Capture Everything");
+				MenuItem capFile = new MenuItem("Upload File");
 				MenuItem capSelection = new MenuItem("Capture Area");
 				MenuItem exit = new MenuItem("Exit");
 				
@@ -84,34 +88,30 @@ public class Screenshot implements ActionListener
 				popup.add(capScreen);
 				//popup.add(capWin);
 				popup.add(capAll);
+				popup.add(capFile);
 				popup.add(capSelection);
 				popup.add(exit);
 				
-				capScreen.add(scr1);
-				capScreen.add(scr2);
-				capScreen.add(scr3);
+				
+				for(MenuItem m : screens){
+					capScreen.add(m);
+				}
+				
+				capScreen.addActionListener(this);
 				popup.addActionListener(this);
 				trayIcon.addActionListener(this);
 				trayIcon.setPopupMenu(popup);
 				tray.add(trayIcon);
 				
 				robot = new Robot();
-				
-				
-				
+						
 			} catch (AWTException e)
 			{
 				new ErrorWindow("An error occurred creating the TrayIcon. Does your OS have a tray?", generateErrorOutput(e.getStackTrace()));
 				e.printStackTrace();
 			} catch (IOException e)
 			{
-				new ErrorWindow("An error occurred loading the resources. Tampering with the jar?", generateErrorOutput(e.getStackTrace()));
-				e.printStackTrace();
-			} catch (LineUnavailableException e) {
-				new ErrorWindow("An error occurred opening the sound clip. Is it already in use or do you not have speakers?", generateErrorOutput(e.getStackTrace()));
-				e.printStackTrace();
-			} catch (UnsupportedAudioFileException e) {
-				new ErrorWindow("An error occurred opening the sound clip. Tampering with the jar?", generateErrorOutput(e.getStackTrace()));
+				new ErrorWindow("An error occurred loading the resources. Peter forgot to pack the jar correctly.", generateErrorOutput(e.getStackTrace()));
 				e.printStackTrace();
 			}
 		}else
@@ -149,11 +149,33 @@ public class Screenshot implements ActionListener
 		User32.INSTANCE.GetWindowText(hwnd, buffer, 1024); //Max window name size
 		RECT rect = new RECT();
 		User32.INSTANCE.GetWindowRect(hwnd, rect);
-	    return rect.toRectangle();
+		Rectangle shitRect = rect.toRectangle();
+	    return new Rectangle(shitRect.x, shitRect.y, 1920, 1080);
 	 }
+	
+	public Rectangle getFullBounds(){
+		int width = 0;
+		int height = 0;
+		GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		GraphicsDevice[] gs = ge.getScreenDevices();
+		Rectangle bounds = new Rectangle();
+		for (GraphicsDevice curGs : gs)
+		{
+		  DisplayMode mode = curGs.getDisplayMode();
+		  width += mode.getWidth();
+		  height = mode.getHeight();
+		  bounds.add(curGs.getDefaultConfiguration().getBounds());
+		}
+		bounds.setSize(width, height);
+		return bounds;
+	}
 
 	private void uploadScreenCapture(BufferedImage br){
 		new Thread(new ThreadedScreenUpload(this, br), "Screenshot uploader thread").run();
+	}
+	
+	private void uploadFile(File file){
+		new Thread(new ThreadedFileUpload(this, file), "File uploader thread").run();
 	}
 
 	@Override
@@ -174,34 +196,30 @@ public class Screenshot implements ActionListener
 			System.exit(1);
 		}else if(event.getActionCommand().equals("Capture Everything"))
 		{
-			uploadScreenCapture(robot.createScreenCapture(new Rectangle(-SCREEN_WIDTH, 0, SCREEN_WIDTH*3, SCREEN_HEIGHT)));
+			uploadScreenCapture(robot.createScreenCapture(getFullBounds()));
 		}else if(event.getActionCommand().equals("Capture Area"))
 		{
 			Overlay.launch(this);
 			if(w > 0 && h > 0){
 				uploadScreenCapture(robot.createScreenCapture(new Rectangle(x, y, w, h)));
 				w = 0;
+			}else if(w < 0 && h < 0){
+				trayIcon.displayMessage("I'm a good programmer", "Please dont make backwards rectangles", MessageType.WARNING);
 			}
-		}else if(event.getActionCommand().equals("Center"))
-		{
-			uploadScreenCapture(robot.createScreenCapture(new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)));
-		}else if(event.getActionCommand().equals("Left"))
-		{
-			uploadScreenCapture(robot.createScreenCapture(new Rectangle(-SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT)));
-		}else if(event.getActionCommand().equals("Right"))
-		{
-			uploadScreenCapture(robot.createScreenCapture(new Rectangle(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT)));
 		}else if(event.getActionCommand().equals("Capture Clipboard"))
 		{
 			Transferable clipboardImage = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);	
 			if(clipboardImage != null && clipboardImage.isDataFlavorSupported(DataFlavor.imageFlavor))
 			{
 				try{
+					for(DataFlavor df : clipboardImage.getTransferDataFlavors()){
+						System.out.println(df.getClass());
+					}
 					uploadScreenCapture((BufferedImage)clipboardImage.getTransferData(DataFlavor.imageFlavor));
 				}catch (UnsupportedFlavorException e)
 			    {
 					trayIcon.displayMessage("Upload Failed", "Clipboard contains an unsupported format. "+e.toString(), MessageType.ERROR);
-			      e.printStackTrace();
+					e.printStackTrace();
 			    }
 			    catch (IOException e)
 			    {
@@ -220,8 +238,17 @@ public class Screenshot implements ActionListener
 		}else if(event.getActionCommand().equals("Capture Active Window"))
 		{
 			uploadScreenCapture(robot.createScreenCapture(getActiveWindowBounds()));
+		}else if(event.getActionCommand().equals("Upload File")){
+			FileDialog fd = new java.awt.FileDialog((java.awt.Frame) null);
+			fd.setVisible(true);
+			
+			for(File file : fd.getFiles()){
+				uploadFile(file);
+			}
 		}
-		else
+		else if(event.getActionCommand().startsWith("Screen")){
+			uploadScreenCapture(robot.createScreenCapture(screenGraphics[Integer.parseInt(event.getActionCommand().replace("Screen ",""))].getDefaultConfiguration().getBounds()));
+		}else
 		{
 			System.err.println("Unknown action command: "+event.getActionCommand());
 		}

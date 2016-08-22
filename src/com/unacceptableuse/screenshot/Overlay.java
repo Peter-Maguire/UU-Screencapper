@@ -83,11 +83,12 @@ public class Overlay implements KeyListener,MouseListener,MouseMoveListener,Pain
 		shell = new Shell(SWT.ON_TOP);
 		shell.setAlpha(30);
 		shell.setBackground(new Color(Display.getDefault(), 255, 255, 255));
-		shell.setBounds(-1920, 0, 1920*3,1080);
+		java.awt.Rectangle bounds = screenshot.getFullBounds();
+		shell.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
 		shell.setText("You should never see this");
 		shell.setCursor(new Cursor(Display.getCurrent(), SWT.CURSOR_CROSS));
 		canvas = new Canvas(shell, SWT.ON_TOP);
-		canvas.setBounds(0, 0, 1920*3,1080);
+		canvas.setBounds(0, 0, bounds.width, bounds.height);
 
 		canvas.addPaintListener(this);
 		canvas.addMouseMoveListener(this);
@@ -103,7 +104,7 @@ public class Overlay implements KeyListener,MouseListener,MouseMoveListener,Pain
 		e.gc.setAlpha(255);
 		//e.gc.setBackground(new Color(e.display, 0, 0, 0));
 		//e.gc.fillRectangle(MouseInfo.getPointerInfo().getLocation().x+16, MouseInfo.getPointerInfo().getLocation().y+16, 256, 32);
-		e.gc.drawText("("+MouseInfo.getPointerInfo().getLocation().x+","+MouseInfo.getPointerInfo().getLocation().y+")", MouseInfo.getPointerInfo().getLocation().x+16+1920, MouseInfo.getPointerInfo().getLocation().y+16+1920);
+		//e.gc.drawText("("+MouseInfo.getPointerInfo().getLocation().x+","+MouseInfo.getPointerInfo().getLocation().y+")", MouseInfo.getPointerInfo().getLocation().x+16+1920, MouseInfo.getPointerInfo().getLocation().y+16+1920);
 		
 		
 		e.gc.setLineWidth(5);
@@ -133,7 +134,6 @@ public class Overlay implements KeyListener,MouseListener,MouseMoveListener,Pain
 		{
 			x = e.x-1920;
 			y = e.y;
-			System.out.println(x+","+y);
 			state = 1;
 		}
 	}
@@ -146,7 +146,6 @@ public class Overlay implements KeyListener,MouseListener,MouseMoveListener,Pain
 			
 			w = e.x-x-1920;
 			h = e.y-y;
-			System.out.println(w+","+h);
 			state = 2;
 		}
 	}

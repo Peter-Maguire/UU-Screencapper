@@ -39,7 +39,7 @@ public class ThreadedScreenUpload implements Runnable{
 	{
 		try{
 			parent.trayIcon.setImage(parent.TRAY_UPLOAD);
-			parent.trayIcon.displayMessage("", "Uploading...", MessageType.INFO);
+			//parent.trayIcon.displayMessage("", "Uploading...", MessageType.INFO);
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ImageIO.write(br, "png", baos);
 			baos.flush();
@@ -54,6 +54,7 @@ public class ThreadedScreenUpload implements Runnable{
 			connection.setRequestMethod("POST");
 			parent.trayIcon.setImage(parent.TRAY_LINK);
 			OutputStreamWriter osw = new OutputStreamWriter(connection.getOutputStream());
+			osw.write("filetype=png&");
 			osw.write("data="+encodedImage);
 			osw.close();
 			BufferedReader bir = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -63,6 +64,7 @@ public class ThreadedScreenUpload implements Runnable{
 			
 			encodedImage = null;
 			connection = null;
+			Runtime.getRuntime().gc();
 			
 			
 			if(link.startsWith("http"))
@@ -71,9 +73,12 @@ public class ThreadedScreenUpload implements Runnable{
 				parent.lastLink.setLabel(link);
 				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(link), null);
 				parent.trayIcon.displayMessage("Screenshot Uploaded" ,link, MessageType.INFO);
-		        parent.clip.start(); 
-			}else
+				parent.clip.play();
+			}else{
 				parent.trayIcon.displayMessage("Upload Failed", link, MessageType.ERROR);
+				System.out.println(link);
+			}
+				
 
 		}catch(Exception e)
 		{
